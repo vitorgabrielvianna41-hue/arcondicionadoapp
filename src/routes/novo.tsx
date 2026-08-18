@@ -1186,12 +1186,13 @@ function Novo() {
             )}
             <button
               type="button"
-              onClick={salvar}
+              onClick={abrirResumo}
               className="relative flex-1 flex items-center justify-center gap-3 py-4 px-8 rounded-2xl bg-[#38BDF8] text-black font-display text-lg tracking-wide shadow-[0_10px_30px_-12px_rgba(245,197,24,0.6)] hover:brightness-110 transition active:scale-[0.99]"
             >
-              <Save size={20} strokeWidth={2.5} />
-              {editing ? "Salvar Alterações" : "Gerar Orçamento"}
+              <FileCheck2 size={20} strokeWidth={2.5} />
+              Revisar e {editing ? "salvar" : "gerar"}
             </button>
+
           </div>
         </div>
       </div>
