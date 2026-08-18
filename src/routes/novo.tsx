@@ -482,22 +482,41 @@ function Novo() {
         descricao: s.desc.trim(),
         valor: +(+s.valor || 0).toFixed(2),
       })),
+      tecnico: {
+        problemaRelatado: (tecnico.problemaRelatado || "").trim(),
+        diagnostico: (tecnico.diagnostico || "").trim(),
+        servicoRecomendado: (tecnico.servicoRecomendado || "").trim(),
+      },
+      registro: {
+        descricao: registroDesc.trim(),
+        fotos,
+      },
+      desconto: +totals.desconto.toFixed(2),
       totals: {
         pecas: +totals.pecasComMargem.toFixed(2),
         maoObra: maoObraTotal,
+        desconto: +totals.desconto.toFixed(2),
         total: +totals.total.toFixed(2),
         lucro: +totals.lucro.toFixed(2),
       },
       status: editing?.status ?? "enviado",
       observacoes: obsExtras.length ? obsExtras.join("\n") : undefined,
       parcelas: editing?.parcelas ?? 1,
-      fotoDataUrl: editing?.fotoDataUrl,
+      fotoDataUrl: editing?.fotoDataUrl ?? fotos[0]?.dataUrl,
     };
-    saveOrcamento(o);
+    try {
+      saveOrcamento(o);
+    } catch (e) {
+      console.error(e);
+      toast.error("Armazenamento cheio. Remova algumas fotos e tente novamente.");
+      return;
+    }
+    setResumoOpen(false);
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
     toast.success(editing ? "Alterações salvas ✓" : "Orçamento criado ✓", { duration: 2000 });
     navigate({ to: "/orcamento/$id", params: { id: o.id } });
   };
+
 
   const cancelar = () => {
     if (editing) navigate({ to: "/orcamento/$id", params: { id: editing.id } });
