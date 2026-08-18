@@ -322,7 +322,7 @@ function Novo() {
       } catch {}
     }, 2000);
     return () => clearTimeout(id);
-  }, [cliente, veiculo, parts, servicos, margem, observacoes, editing]);
+  }, [cliente, veiculo, parts, servicos, margem, observacoes, tecnico, registroDesc, desconto, editing]);
 
   const continuarRascunho = () => {
     try {
