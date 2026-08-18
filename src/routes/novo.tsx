@@ -303,7 +303,7 @@ function Novo() {
   useEffect(() => {
     if (editing) return;
     if (skipAutosaveRef.current) return;
-    const snapshot = JSON.stringify({ cliente, veiculo, parts, servicos, margem, observacoes });
+    const snapshot = JSON.stringify({ cliente, veiculo, parts, servicos, margem, observacoes, tecnico, registroDesc, desconto });
     if (snapshot === draftSnapshotRef.current) return;
     // só salva se tiver algum conteúdo significativo
     const hasContent =
