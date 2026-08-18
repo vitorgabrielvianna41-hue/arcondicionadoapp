@@ -15,6 +15,11 @@ import {
   Package,
   Search,
   UserPlus,
+  Stethoscope,
+  Camera,
+  X,
+  FileCheck2,
+
 } from "lucide-react";
 import { VozOrcamentoModal, type VozDados } from "@/components/VozOrcamentoModal";
 
