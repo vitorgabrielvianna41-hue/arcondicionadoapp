@@ -1222,11 +1222,158 @@ function Novo() {
         </div>
       )}
 
+      {resumoOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: "rgba(0,0,0,0.88)" }}
+        >
+          <div
+            className="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl"
+            style={{ background: "#0D0D0D", border: "1px solid #1E1E1E", borderTop: "3px solid #38BDF8" }}
+          >
+            <div className="sticky top-0 z-10 px-5 py-4 flex items-center justify-between"
+              style={{ background: "#0D0D0D", borderBottom: "1px solid #1E1E1E" }}>
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em]" style={{ color: "#888" }}>
+                  Confira antes de gerar · {numeroOS}
+                </p>
+                <h3 className="text-white font-bold text-lg leading-tight">Resumo do Orçamento</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setResumoOpen(false)}
+                aria-label="Fechar"
+                className="grid place-items-center size-9 rounded-xl text-[#888]"
+                style={{ background: "#111111", border: "1px solid #1E1E1E" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              <ResumoBloco titulo="Cliente & Equipamento">
+                <p className="text-white text-sm font-semibold">{cliente.nome || "—"}</p>
+                <p className="text-xs" style={{ color: "#A0A0B0" }}>
+                  {cliente.telefone || "sem telefone"}
+                  {veiculo.placa ? ` · ${veiculo.placa}` : ""}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "#A0A0B0" }}>
+                  {[equip.tipoEquipamento, veiculo.marca, veiculo.modelo, veiculo.ano]
+                    .filter(Boolean)
+                    .join(" · ") || "Equipamento não informado"}
+                </p>
+              </ResumoBloco>
+
+              <ResumoBloco titulo="Diagnóstico">
+                <ResumoLinha rotulo="Problema relatado" texto={tecnico.problemaRelatado} />
+                <ResumoLinha rotulo="Diagnóstico técnico" texto={tecnico.diagnostico} />
+              </ResumoBloco>
+
+              <ResumoBloco titulo="Serviço">
+                <ResumoLinha rotulo="Recomendado" texto={tecnico.servicoRecomendado} />
+                {servicos
+                  .filter((s) => (s.nome || s.desc).trim())
+                  .map((s, i) => (
+                    <p key={i} className="text-sm text-white">
+                      • {s.nome || s.desc}
+                    </p>
+                  ))}
+              </ResumoBloco>
+
+              <ResumoBloco titulo="Materiais">
+                {parts.filter((p) => p.name.trim()).length === 0 ? (
+                  <p className="text-sm" style={{ color: "#A0A0B0" }}>Sem peças/materiais.</p>
+                ) : (
+                  parts
+                    .filter((p) => p.name.trim())
+                    .map((p, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span className="text-white truncate pr-2">
+                          {p.qty}× {p.name}
+                        </span>
+                        <span style={{ color: "#A0A0B0" }}>
+                          {brl(p.qty * p.price * (1 + margem / 100))}
+                        </span>
+                      </div>
+                    ))
+                )}
+                <div className="flex justify-between text-sm mt-1 pt-1" style={{ borderTop: "1px solid #1E1E1E" }}>
+                  <span style={{ color: "#A0A0B0" }}>Subtotal materiais</span>
+                  <span className="text-white font-bold">{brl(totals.pecasComMargem)}</span>
+                </div>
+              </ResumoBloco>
+
+              <ResumoBloco titulo="Mão de obra">
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: "#A0A0B0" }}>Total de serviços</span>
+                  <span className="text-white font-bold">{brl(maoObraTotal)}</span>
+                </div>
+              </ResumoBloco>
+
+              {!!fotos.length && (
+                <ResumoBloco titulo={`Registro do serviço (${fotos.length} foto${fotos.length > 1 ? "s" : ""})`}>
+                  <div className="flex gap-2 overflow-x-auto">
+                    {fotos.map((f) => (
+                      <img
+                        key={f.id}
+                        src={f.dataUrl}
+                        alt="Registro"
+                        className="h-16 w-24 object-cover rounded-lg shrink-0"
+                        style={{ border: "1px solid #1E1E1E" }}
+                      />
+                    ))}
+                  </div>
+                  {registroDesc.trim() && (
+                    <p className="text-xs mt-2" style={{ color: "#A0A0B0" }}>{registroDesc}</p>
+                  )}
+                </ResumoBloco>
+              )}
+
+              <div className="rounded-2xl p-4" style={{ background: "#000000", border: "1px solid #38BDF8" }}>
+                {totals.desconto > 0 && (
+                  <div className="flex justify-between text-sm mb-1">
+                    <span style={{ color: "#A0A0B0" }}>Desconto</span>
+                    <span style={{ color: "#22C55E" }}>− {brl(totals.desconto)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-white font-bold tracking-widest text-sm">TOTAL</span>
+                  <span className="font-bold text-2xl" style={{ color: "#38BDF8" }}>
+                    {brl(totals.total)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 px-5 py-4 grid grid-cols-2 gap-2"
+              style={{ background: "#0D0D0D", borderTop: "1px solid #1E1E1E" }}>
+              <button
+                type="button"
+                onClick={() => setResumoOpen(false)}
+                className="py-3.5 rounded-xl font-bold text-sm text-white"
+                style={{ background: "transparent", border: "1px solid #2C2C2C" }}
+              >
+                Continuar editando
+              </button>
+              <button
+                type="button"
+                onClick={salvar}
+                className="py-3.5 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-2"
+                style={{ background: "#38BDF8", color: "#000000" }}
+              >
+                <Save size={16} /> {editing ? "Salvar" : "Gerar orçamento"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <VozOrcamentoModal
         open={vozOpen}
         onClose={() => setVozOpen(false)}
         onAplicar={aplicarVoz}
       />
+
     </main>
 
   );
