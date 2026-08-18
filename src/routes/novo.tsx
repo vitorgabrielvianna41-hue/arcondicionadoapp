@@ -409,22 +409,34 @@ function Novo() {
     setParts((arr) => [...arr, { key, name, descricao: "", qty: 1, unit: "un", price }]);
   };
 
-  const salvar = () => {
+  const validar = () => {
     if (!cliente.nome.trim()) {
       toast.error("Informe o nome do cliente.");
-      return;
+      return false;
     }
-    const validParts = parts.filter((p) => p.name.trim() && p.qty > 0);
-    // Validação CDC: descrição obrigatória
-    if (validParts.some((p) => !(p.descricao || "").trim())) {
+    const vParts = parts.filter((p) => p.name.trim() && p.qty > 0);
+    if (vParts.some((p) => !(p.descricao || "").trim())) {
       toast.error("Descrição obrigatória em todas as peças (exigência legal).");
-      return;
+      return false;
     }
-    const validServ = servicos.filter((s) => (s.nome || s.desc).trim());
-    if (validServ.some((s) => !s.desc.trim())) {
+    const vServ = servicos.filter((s) => (s.nome || s.desc).trim());
+    if (vServ.some((s) => !s.desc.trim())) {
       toast.error("Descrição obrigatória em todos os serviços (exigência legal).");
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const abrirResumo = () => {
+    if (!validar()) return;
+    setResumoOpen(true);
+  };
+
+  const salvar = () => {
+    if (!validar()) return;
+    const validParts = parts.filter((p) => p.name.trim() && p.qty > 0);
+    const validServ = servicos.filter((s) => (s.nome || s.desc).trim());
+
     const obsExtras: string[] = [];
     if (cliente.email) obsExtras.push(`E-mail: ${cliente.email}`);
     if (veiculo.km) obsExtras.push(`Quantidade: ${veiculo.km}`);
