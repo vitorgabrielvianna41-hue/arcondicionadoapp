@@ -28,7 +28,10 @@ import {
   type Cliente,
   type LinePart,
   type Orcamento,
+  type RegistroFoto,
+  type TecnicoInfo,
 } from "@/lib/storage";
+
 import { toast } from "sonner";
 import { consumePick } from "@/lib/catalogo";
 import { gerarNumeroOS } from "@/lib/checklist-storage";
