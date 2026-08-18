@@ -359,10 +359,35 @@ function Novo() {
   const totals = useMemo(() => {
     const custoPecas = parts.reduce((s, p) => s + p.price * p.qty, 0);
     const pecasComMargem = custoPecas * (1 + margem / 100);
-    const total = pecasComMargem + maoObraTotal;
-    const lucro = pecasComMargem - custoPecas + maoObraTotal;
-    return { custoPecas, pecasComMargem, total, lucro };
-  }, [parts, margem, maoObraTotal]);
+    const bruto = pecasComMargem + maoObraTotal;
+    const desc = Math.max(0, Math.min(Number(desconto) || 0, bruto));
+    const total = bruto - desc;
+    const lucro = pecasComMargem - custoPecas + maoObraTotal - desc;
+    return { custoPecas, pecasComMargem, bruto, desconto: desc, total, lucro };
+  }, [parts, margem, maoObraTotal, desconto]);
+
+  // Fotos do Registro do Serviço
+  const addFotos = async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    const restante = MAX_FOTOS - fotos.length;
+    if (restante <= 0) {
+      toast.error(`Máximo de ${MAX_FOTOS} fotos por orçamento.`);
+      return;
+    }
+    const novas: RegistroFoto[] = [];
+    for (const f of Array.from(files).slice(0, restante)) {
+      try {
+        novas.push({ id: crypto.randomUUID(), dataUrl: await compressImage(f) });
+      } catch {
+        toast.error(`Não foi possível processar "${f.name}".`);
+      }
+    }
+    if (novas.length) setFotos((arr) => [...arr, ...novas]);
+  };
+  const removeFoto = (fid: string) => setFotos((arr) => arr.filter((f) => f.id !== fid));
+  const setLegenda = (fid: string, legenda: string) =>
+    setFotos((arr) => arr.map((f) => (f.id === fid ? { ...f, legenda } : f)));
+
 
   const updateServico = (i: number, patch: Partial<ServicoEx>) =>
     setServicos((arr) => arr.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
