@@ -335,6 +335,9 @@ function Novo() {
       if (d.servicos) setServicos(d.servicos);
       if (typeof d.margem === "number") setMargem(d.margem);
       if (typeof d.observacoes === "string") setObservacoes(d.observacoes);
+      if (d.tecnico) setTecnico(d.tecnico);
+      if (typeof d.registroDesc === "string") setRegistroDesc(d.registroDesc);
+      if (typeof d.desconto === "number") setDesconto(d.desconto);
     } catch {}
     setShowDraftPrompt(false);
   };
