@@ -35,6 +35,7 @@ import {
 import { toast } from "sonner";
 import { consumePick } from "@/lib/catalogo";
 import { gerarNumeroOS } from "@/lib/checklist-storage";
+import { compressImage, MAX_FOTOS } from "@/lib/foto";
 
 const TIPOS_SERVICO = [
   "Instalação de Split",
