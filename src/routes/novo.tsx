@@ -15,6 +15,11 @@ import {
   Package,
   Search,
   UserPlus,
+  Stethoscope,
+  Camera,
+  X,
+  FileCheck2,
+
 } from "lucide-react";
 import { VozOrcamentoModal, type VozDados } from "@/components/VozOrcamentoModal";
 
@@ -28,10 +33,14 @@ import {
   type Cliente,
   type LinePart,
   type Orcamento,
+  type RegistroFoto,
+  type TecnicoInfo,
 } from "@/lib/storage";
+
 import { toast } from "sonner";
 import { consumePick } from "@/lib/catalogo";
 import { gerarNumeroOS } from "@/lib/checklist-storage";
+import { compressImage, MAX_FOTOS } from "@/lib/foto";
 
 const TIPOS_SERVICO = [
   "Instalação de Split",
@@ -210,8 +219,17 @@ function Novo() {
   const [servicos, setServicos] = useState<ServicoEx[]>(init.servicos);
   const [margem, setMargem] = useState(init.margem);
   const [observacoes, setObservacoes] = useState(init.observacoes);
+  const [tecnico, setTecnico] = useState<TecnicoInfo>({
+    problemaRelatado: editing?.tecnico?.problemaRelatado ?? "",
+    diagnostico: editing?.tecnico?.diagnostico ?? "",
+    servicoRecomendado: editing?.tecnico?.servicoRecomendado ?? "",
+  });
+  const [registroDesc, setRegistroDesc] = useState(editing?.registro?.descricao ?? "");
+  const [fotos, setFotos] = useState<RegistroFoto[]>(editing?.registro?.fotos ?? []);
+  const [desconto, setDesconto] = useState<number>(editing?.desconto ?? 0);
   const [foundVehicle, setFoundVehicle] = useState(false);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+  const [resumoOpen, setResumoOpen] = useState(false);
   const draftSnapshotRef = useRef<string>("");
   const skipAutosaveRef = useRef(true);
   const numeroOS = useMemo(
@@ -229,6 +247,19 @@ function Novo() {
     setMargem(init.margem);
     setObservacoes(init.observacoes);
   }, [init]);
+
+  useEffect(() => {
+    if (!editing) return;
+    setTecnico({
+      problemaRelatado: editing.tecnico?.problemaRelatado ?? "",
+      diagnostico: editing.tecnico?.diagnostico ?? "",
+      servicoRecomendado: editing.tecnico?.servicoRecomendado ?? "",
+    });
+    setRegistroDesc(editing.registro?.descricao ?? "");
+    setFotos(editing.registro?.fotos ?? []);
+    setDesconto(editing.desconto ?? 0);
+  }, [editing]);
+
 
 
 
@@ -278,7 +309,7 @@ function Novo() {
   useEffect(() => {
     if (editing) return;
     if (skipAutosaveRef.current) return;
-    const snapshot = JSON.stringify({ cliente, veiculo, parts, servicos, margem, observacoes });
+    const snapshot = JSON.stringify({ cliente, veiculo, parts, servicos, margem, observacoes, tecnico, registroDesc, desconto });
     if (snapshot === draftSnapshotRef.current) return;
     // só salva se tiver algum conteúdo significativo
     const hasContent =
@@ -297,7 +328,7 @@ function Novo() {
       } catch {}
     }, 2000);
     return () => clearTimeout(id);
-  }, [cliente, veiculo, parts, servicos, margem, observacoes, editing]);
+  }, [cliente, veiculo, parts, servicos, margem, observacoes, tecnico, registroDesc, desconto, editing]);
 
   const continuarRascunho = () => {
     try {
@@ -310,6 +341,9 @@ function Novo() {
       if (d.servicos) setServicos(d.servicos);
       if (typeof d.margem === "number") setMargem(d.margem);
       if (typeof d.observacoes === "string") setObservacoes(d.observacoes);
+      if (d.tecnico) setTecnico(d.tecnico);
+      if (typeof d.registroDesc === "string") setRegistroDesc(d.registroDesc);
+      if (typeof d.desconto === "number") setDesconto(d.desconto);
     } catch {}
     setShowDraftPrompt(false);
   };
@@ -331,10 +365,35 @@ function Novo() {
   const totals = useMemo(() => {
     const custoPecas = parts.reduce((s, p) => s + p.price * p.qty, 0);
     const pecasComMargem = custoPecas * (1 + margem / 100);
-    const total = pecasComMargem + maoObraTotal;
-    const lucro = pecasComMargem - custoPecas + maoObraTotal;
-    return { custoPecas, pecasComMargem, total, lucro };
-  }, [parts, margem, maoObraTotal]);
+    const bruto = pecasComMargem + maoObraTotal;
+    const desc = Math.max(0, Math.min(Number(desconto) || 0, bruto));
+    const total = bruto - desc;
+    const lucro = pecasComMargem - custoPecas + maoObraTotal - desc;
+    return { custoPecas, pecasComMargem, bruto, desconto: desc, total, lucro };
+  }, [parts, margem, maoObraTotal, desconto]);
+
+  // Fotos do Registro do Serviço
+  const addFotos = async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    const restante = MAX_FOTOS - fotos.length;
+    if (restante <= 0) {
+      toast.error(`Máximo de ${MAX_FOTOS} fotos por orçamento.`);
+      return;
+    }
+    const novas: RegistroFoto[] = [];
+    for (const f of Array.from(files).slice(0, restante)) {
+      try {
+        novas.push({ id: crypto.randomUUID(), dataUrl: await compressImage(f) });
+      } catch {
+        toast.error(`Não foi possível processar "${f.name}".`);
+      }
+    }
+    if (novas.length) setFotos((arr) => [...arr, ...novas]);
+  };
+  const removeFoto = (fid: string) => setFotos((arr) => arr.filter((f) => f.id !== fid));
+  const setLegenda = (fid: string, legenda: string) =>
+    setFotos((arr) => arr.map((f) => (f.id === fid ? { ...f, legenda } : f)));
+
 
   const updateServico = (i: number, patch: Partial<ServicoEx>) =>
     setServicos((arr) => arr.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
@@ -355,22 +414,34 @@ function Novo() {
     setParts((arr) => [...arr, { key, name, descricao: "", qty: 1, unit: "un", price }]);
   };
 
-  const salvar = () => {
+  const validar = () => {
     if (!cliente.nome.trim()) {
       toast.error("Informe o nome do cliente.");
-      return;
+      return false;
     }
-    const validParts = parts.filter((p) => p.name.trim() && p.qty > 0);
-    // Validação CDC: descrição obrigatória
-    if (validParts.some((p) => !(p.descricao || "").trim())) {
+    const vParts = parts.filter((p) => p.name.trim() && p.qty > 0);
+    if (vParts.some((p) => !(p.descricao || "").trim())) {
       toast.error("Descrição obrigatória em todas as peças (exigência legal).");
-      return;
+      return false;
     }
-    const validServ = servicos.filter((s) => (s.nome || s.desc).trim());
-    if (validServ.some((s) => !s.desc.trim())) {
+    const vServ = servicos.filter((s) => (s.nome || s.desc).trim());
+    if (vServ.some((s) => !s.desc.trim())) {
       toast.error("Descrição obrigatória em todos os serviços (exigência legal).");
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const abrirResumo = () => {
+    if (!validar()) return;
+    setResumoOpen(true);
+  };
+
+  const salvar = () => {
+    if (!validar()) return;
+    const validParts = parts.filter((p) => p.name.trim() && p.qty > 0);
+    const validServ = servicos.filter((s) => (s.nome || s.desc).trim());
+
     const obsExtras: string[] = [];
     if (cliente.email) obsExtras.push(`E-mail: ${cliente.email}`);
     if (veiculo.km) obsExtras.push(`Quantidade: ${veiculo.km}`);
@@ -416,22 +487,41 @@ function Novo() {
         descricao: s.desc.trim(),
         valor: +(+s.valor || 0).toFixed(2),
       })),
+      tecnico: {
+        problemaRelatado: (tecnico.problemaRelatado || "").trim(),
+        diagnostico: (tecnico.diagnostico || "").trim(),
+        servicoRecomendado: (tecnico.servicoRecomendado || "").trim(),
+      },
+      registro: {
+        descricao: registroDesc.trim(),
+        fotos,
+      },
+      desconto: +totals.desconto.toFixed(2),
       totals: {
         pecas: +totals.pecasComMargem.toFixed(2),
         maoObra: maoObraTotal,
+        desconto: +totals.desconto.toFixed(2),
         total: +totals.total.toFixed(2),
         lucro: +totals.lucro.toFixed(2),
       },
       status: editing?.status ?? "enviado",
       observacoes: obsExtras.length ? obsExtras.join("\n") : undefined,
       parcelas: editing?.parcelas ?? 1,
-      fotoDataUrl: editing?.fotoDataUrl,
+      fotoDataUrl: editing?.fotoDataUrl ?? fotos[0]?.dataUrl,
     };
-    saveOrcamento(o);
+    try {
+      saveOrcamento(o);
+    } catch (e) {
+      console.error(e);
+      toast.error("Armazenamento cheio. Remova algumas fotos e tente novamente.");
+      return;
+    }
+    setResumoOpen(false);
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
     toast.success(editing ? "Alterações salvas ✓" : "Orçamento criado ✓", { duration: 2000 });
     navigate({ to: "/orcamento/$id", params: { id: o.id } });
   };
+
 
   const cancelar = () => {
     if (editing) navigate({ to: "/orcamento/$id", params: { id: editing.id } });
@@ -744,6 +834,94 @@ function Novo() {
           </Grid>
         </Section>
 
+        {/* 4.1 Diagnóstico Técnico */}
+        <Section icon={Stethoscope} title="Diagnóstico Técnico" defaultOpen>
+          <div className="space-y-3">
+            <Field label="Problema relatado pelo cliente">
+              <textarea
+                className="w-full bg-[#111111] border border-[#1E1E1E] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow min-h-[72px] resize-none"
+                value={tecnico.problemaRelatado || ""}
+                onChange={(e) => setTecnico({ ...tecnico, problemaRelatado: e.target.value })}
+                placeholder="Ex: Aparelho não gela e faz barulho ao ligar"
+              />
+            </Field>
+            <Field label="Diagnóstico técnico">
+              <textarea
+                className="w-full bg-[#111111] border border-[#1E1E1E] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow min-h-[72px] resize-none"
+                value={tecnico.diagnostico || ""}
+                onChange={(e) => setTecnico({ ...tecnico, diagnostico: e.target.value })}
+                placeholder="Ex: Vazamento na conexão flare da evaporadora e filtro saturado"
+              />
+            </Field>
+            <Field label="Serviço recomendado">
+              <textarea
+                className="w-full bg-[#111111] border border-[#1E1E1E] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow min-h-[72px] resize-none"
+                value={tecnico.servicoRecomendado || ""}
+                onChange={(e) => setTecnico({ ...tecnico, servicoRecomendado: e.target.value })}
+                placeholder="Ex: Reparo do flare, vácuo, recarga de gás R410A e higienização"
+              />
+            </Field>
+          </div>
+        </Section>
+
+        {/* 4.2 Registro do Serviço */}
+        <Section icon={Camera} title="Registro do Serviço" defaultOpen>
+          <Field label="Descrição curta do registro">
+            <textarea
+              className="w-full bg-[#111111] border border-[#1E1E1E] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow min-h-[64px] resize-none"
+              value={registroDesc}
+              onChange={(e) => setRegistroDesc(e.target.value)}
+              placeholder="Ex: Condensadora instalada em laje, com sinais de oxidação na base"
+            />
+          </Field>
+
+          <div className="mt-3">
+            <span className="text-[11px] uppercase tracking-[0.14em] text-[#888] font-semibold">
+              Fotos do equipamento / problema ({fotos.length}/{MAX_FOTOS})
+            </span>
+            <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {fotos.map((f) => (
+                <div
+                  key={f.id}
+                  className="relative rounded-xl overflow-hidden border border-[#1E1E1E] bg-[#111111]"
+                >
+                  <img src={f.dataUrl} alt="Registro do serviço" className="w-full h-28 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeFoto(f.id)}
+                    aria-label="Remover foto"
+                    className="absolute top-1.5 right-1.5 grid place-items-center size-7 rounded-lg bg-black/70 text-red-400 border border-red-500/40"
+                  >
+                    <X size={14} />
+                  </button>
+                  <input
+                    value={f.legenda || ""}
+                    onChange={(e) => setLegenda(f.id, e.target.value)}
+                    placeholder="Legenda"
+                    className="w-full bg-[#0D0D0D] text-xs text-white px-2 py-1.5 outline-none placeholder:text-[#555]"
+                  />
+                </div>
+              ))}
+              {fotos.length < MAX_FOTOS && (
+                <label className="cursor-pointer h-28 rounded-xl border border-dashed border-yellow/60 text-yellow flex flex-col items-center justify-center gap-1 text-xs font-semibold hover:bg-yellow/10 transition">
+                  <Camera size={20} />
+                  Adicionar foto
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      void addFotos(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+        </Section>
+
 
         {/* 3. Peças */}
         <Section icon={Package} title="Peças e Materiais" defaultOpen>
@@ -944,6 +1122,22 @@ function Novo() {
                 <span className="text-xs text-[#666]">%</span>
               </div>
             </div>
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-[#888]">Desconto (R$)</span>
+                <Input
+                  type="number"
+                  value={String(desconto)}
+                  onChange={(v) => setDesconto(Math.max(0, +v || 0))}
+                  className="!py-1.5 !text-sm w-32 text-right"
+                />
+              </div>
+              {totals.desconto > 0 && (
+                <p className="text-xs mt-1.5 text-right text-emerald-400">
+                  − {brl(totals.desconto)} sobre {brl(totals.bruto)}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-3">
@@ -954,6 +1148,7 @@ function Novo() {
             />
             <Highlight label="Lucro estimado" value={brl(totals.lucro)} />
           </div>
+
 
           <div className="mt-4">
             <Field label="Observações">
@@ -991,12 +1186,13 @@ function Novo() {
             )}
             <button
               type="button"
-              onClick={salvar}
+              onClick={abrirResumo}
               className="relative flex-1 flex items-center justify-center gap-3 py-4 px-8 rounded-2xl bg-[#38BDF8] text-black font-display text-lg tracking-wide shadow-[0_10px_30px_-12px_rgba(245,197,24,0.6)] hover:brightness-110 transition active:scale-[0.99]"
             >
-              <Save size={20} strokeWidth={2.5} />
-              {editing ? "Salvar Alterações" : "Gerar Orçamento"}
+              <FileCheck2 size={20} strokeWidth={2.5} />
+              Revisar e {editing ? "salvar" : "gerar"}
             </button>
+
           </div>
         </div>
       </div>
@@ -1026,11 +1222,158 @@ function Novo() {
         </div>
       )}
 
+      {resumoOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: "rgba(0,0,0,0.88)" }}
+        >
+          <div
+            className="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl"
+            style={{ background: "#0D0D0D", border: "1px solid #1E1E1E", borderTop: "3px solid #38BDF8" }}
+          >
+            <div className="sticky top-0 z-10 px-5 py-4 flex items-center justify-between"
+              style={{ background: "#0D0D0D", borderBottom: "1px solid #1E1E1E" }}>
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em]" style={{ color: "#888" }}>
+                  Confira antes de gerar · {numeroOS}
+                </p>
+                <h3 className="text-white font-bold text-lg leading-tight">Resumo do Orçamento</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setResumoOpen(false)}
+                aria-label="Fechar"
+                className="grid place-items-center size-9 rounded-xl text-[#888]"
+                style={{ background: "#111111", border: "1px solid #1E1E1E" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              <ResumoBloco titulo="Cliente & Equipamento">
+                <p className="text-white text-sm font-semibold">{cliente.nome || "—"}</p>
+                <p className="text-xs" style={{ color: "#A0A0B0" }}>
+                  {cliente.telefone || "sem telefone"}
+                  {veiculo.placa ? ` · ${veiculo.placa}` : ""}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "#A0A0B0" }}>
+                  {[equip.tipoEquipamento, veiculo.marca, veiculo.modelo, veiculo.ano]
+                    .filter(Boolean)
+                    .join(" · ") || "Equipamento não informado"}
+                </p>
+              </ResumoBloco>
+
+              <ResumoBloco titulo="Diagnóstico">
+                <ResumoLinha rotulo="Problema relatado" texto={tecnico.problemaRelatado} />
+                <ResumoLinha rotulo="Diagnóstico técnico" texto={tecnico.diagnostico} />
+              </ResumoBloco>
+
+              <ResumoBloco titulo="Serviço">
+                <ResumoLinha rotulo="Recomendado" texto={tecnico.servicoRecomendado} />
+                {servicos
+                  .filter((s) => (s.nome || s.desc).trim())
+                  .map((s, i) => (
+                    <p key={i} className="text-sm text-white">
+                      • {s.nome || s.desc}
+                    </p>
+                  ))}
+              </ResumoBloco>
+
+              <ResumoBloco titulo="Materiais">
+                {parts.filter((p) => p.name.trim()).length === 0 ? (
+                  <p className="text-sm" style={{ color: "#A0A0B0" }}>Sem peças/materiais.</p>
+                ) : (
+                  parts
+                    .filter((p) => p.name.trim())
+                    .map((p, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span className="text-white truncate pr-2">
+                          {p.qty}× {p.name}
+                        </span>
+                        <span style={{ color: "#A0A0B0" }}>
+                          {brl(p.qty * p.price * (1 + margem / 100))}
+                        </span>
+                      </div>
+                    ))
+                )}
+                <div className="flex justify-between text-sm mt-1 pt-1" style={{ borderTop: "1px solid #1E1E1E" }}>
+                  <span style={{ color: "#A0A0B0" }}>Subtotal materiais</span>
+                  <span className="text-white font-bold">{brl(totals.pecasComMargem)}</span>
+                </div>
+              </ResumoBloco>
+
+              <ResumoBloco titulo="Mão de obra">
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: "#A0A0B0" }}>Total de serviços</span>
+                  <span className="text-white font-bold">{brl(maoObraTotal)}</span>
+                </div>
+              </ResumoBloco>
+
+              {!!fotos.length && (
+                <ResumoBloco titulo={`Registro do serviço (${fotos.length} foto${fotos.length > 1 ? "s" : ""})`}>
+                  <div className="flex gap-2 overflow-x-auto">
+                    {fotos.map((f) => (
+                      <img
+                        key={f.id}
+                        src={f.dataUrl}
+                        alt="Registro"
+                        className="h-16 w-24 object-cover rounded-lg shrink-0"
+                        style={{ border: "1px solid #1E1E1E" }}
+                      />
+                    ))}
+                  </div>
+                  {registroDesc.trim() && (
+                    <p className="text-xs mt-2" style={{ color: "#A0A0B0" }}>{registroDesc}</p>
+                  )}
+                </ResumoBloco>
+              )}
+
+              <div className="rounded-2xl p-4" style={{ background: "#000000", border: "1px solid #38BDF8" }}>
+                {totals.desconto > 0 && (
+                  <div className="flex justify-between text-sm mb-1">
+                    <span style={{ color: "#A0A0B0" }}>Desconto</span>
+                    <span style={{ color: "#22C55E" }}>− {brl(totals.desconto)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-white font-bold tracking-widest text-sm">TOTAL</span>
+                  <span className="font-bold text-2xl" style={{ color: "#38BDF8" }}>
+                    {brl(totals.total)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 px-5 py-4 grid grid-cols-2 gap-2"
+              style={{ background: "#0D0D0D", borderTop: "1px solid #1E1E1E" }}>
+              <button
+                type="button"
+                onClick={() => setResumoOpen(false)}
+                className="py-3.5 rounded-xl font-bold text-sm text-white"
+                style={{ background: "transparent", border: "1px solid #2C2C2C" }}
+              >
+                Continuar editando
+              </button>
+              <button
+                type="button"
+                onClick={salvar}
+                className="py-3.5 rounded-xl font-bold text-sm inline-flex items-center justify-center gap-2"
+                style={{ background: "#38BDF8", color: "#000000" }}
+              >
+                <Save size={16} /> {editing ? "Salvar" : "Gerar orçamento"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <VozOrcamentoModal
         open={vozOpen}
         onClose={() => setVozOpen(false)}
         onAplicar={aplicarVoz}
       />
+
     </main>
 
   );

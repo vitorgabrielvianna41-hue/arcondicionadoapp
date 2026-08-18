@@ -35,6 +35,20 @@ export type LinePart = {
 
 export type StatusOrc = "enviado" | "aprovado" | "concluido";
 
+/** Bloco técnico da ordem de serviço (diferencial do orçamento profissional). */
+export type TecnicoInfo = {
+  problemaRelatado?: string;
+  diagnostico?: string;
+  servicoRecomendado?: string;
+};
+
+/** Registro do serviço: fotos do equipamento/problema + descrição curta. */
+export type RegistroFoto = { id: string; dataUrl: string; legenda?: string };
+export type RegistroServico = {
+  descricao?: string;
+  fotos: RegistroFoto[];
+};
+
 export type Orcamento = {
   id: string;
   createdAt: string;
@@ -49,9 +63,13 @@ export type Orcamento = {
   maoObra: number;
   parts: LinePart[];
   servicosDetalhados?: { nome: string; descricao: string; valor: number }[];
+  tecnico?: TecnicoInfo;
+  registro?: RegistroServico;
+  desconto?: number;
   totals: {
     pecas: number;
     maoObra: number;
+    desconto?: number;
     total: number;
     lucro: number;
   };
@@ -61,6 +79,7 @@ export type Orcamento = {
   parcelas?: number; // 1 | 2 | 3
   os?: string;
 };
+
 
 export type Vehicle = {
   placa: string;
