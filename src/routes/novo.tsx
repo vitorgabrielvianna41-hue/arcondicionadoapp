@@ -829,6 +829,94 @@ function Novo() {
           </Grid>
         </Section>
 
+        {/* 4.1 Diagnóstico Técnico */}
+        <Section icon={Stethoscope} title="Diagnóstico Técnico" defaultOpen>
+          <div className="space-y-3">
+            <Field label="Problema relatado pelo cliente">
+              <textarea
+                className="w-full bg-[#111111] border border-[#1E1E1E] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow min-h-[72px] resize-none"
+                value={tecnico.problemaRelatado || ""}
+                onChange={(e) => setTecnico({ ...tecnico, problemaRelatado: e.target.value })}
+                placeholder="Ex: Aparelho não gela e faz barulho ao ligar"
+              />
+            </Field>
+            <Field label="Diagnóstico técnico">
+              <textarea
+                className="w-full bg-[#111111] border border-[#1E1E1E] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow min-h-[72px] resize-none"
+                value={tecnico.diagnostico || ""}
+                onChange={(e) => setTecnico({ ...tecnico, diagnostico: e.target.value })}
+                placeholder="Ex: Vazamento na conexão flare da evaporadora e filtro saturado"
+              />
+            </Field>
+            <Field label="Serviço recomendado">
+              <textarea
+                className="w-full bg-[#111111] border border-[#1E1E1E] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow min-h-[72px] resize-none"
+                value={tecnico.servicoRecomendado || ""}
+                onChange={(e) => setTecnico({ ...tecnico, servicoRecomendado: e.target.value })}
+                placeholder="Ex: Reparo do flare, vácuo, recarga de gás R410A e higienização"
+              />
+            </Field>
+          </div>
+        </Section>
+
+        {/* 4.2 Registro do Serviço */}
+        <Section icon={Camera} title="Registro do Serviço" defaultOpen>
+          <Field label="Descrição curta do registro">
+            <textarea
+              className="w-full bg-[#111111] border border-[#1E1E1E] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow min-h-[64px] resize-none"
+              value={registroDesc}
+              onChange={(e) => setRegistroDesc(e.target.value)}
+              placeholder="Ex: Condensadora instalada em laje, com sinais de oxidação na base"
+            />
+          </Field>
+
+          <div className="mt-3">
+            <span className="text-[11px] uppercase tracking-[0.14em] text-[#888] font-semibold">
+              Fotos do equipamento / problema ({fotos.length}/{MAX_FOTOS})
+            </span>
+            <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {fotos.map((f) => (
+                <div
+                  key={f.id}
+                  className="relative rounded-xl overflow-hidden border border-[#1E1E1E] bg-[#111111]"
+                >
+                  <img src={f.dataUrl} alt="Registro do serviço" className="w-full h-28 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeFoto(f.id)}
+                    aria-label="Remover foto"
+                    className="absolute top-1.5 right-1.5 grid place-items-center size-7 rounded-lg bg-black/70 text-red-400 border border-red-500/40"
+                  >
+                    <X size={14} />
+                  </button>
+                  <input
+                    value={f.legenda || ""}
+                    onChange={(e) => setLegenda(f.id, e.target.value)}
+                    placeholder="Legenda"
+                    className="w-full bg-[#0D0D0D] text-xs text-white px-2 py-1.5 outline-none placeholder:text-[#555]"
+                  />
+                </div>
+              ))}
+              {fotos.length < MAX_FOTOS && (
+                <label className="cursor-pointer h-28 rounded-xl border border-dashed border-yellow/60 text-yellow flex flex-col items-center justify-center gap-1 text-xs font-semibold hover:bg-yellow/10 transition">
+                  <Camera size={20} />
+                  Adicionar foto
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      void addFotos(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+        </Section>
+
 
         {/* 3. Peças */}
         <Section icon={Package} title="Peças e Materiais" defaultOpen>
