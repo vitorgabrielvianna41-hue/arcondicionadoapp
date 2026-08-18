@@ -210,8 +210,17 @@ function Novo() {
   const [servicos, setServicos] = useState<ServicoEx[]>(init.servicos);
   const [margem, setMargem] = useState(init.margem);
   const [observacoes, setObservacoes] = useState(init.observacoes);
+  const [tecnico, setTecnico] = useState<TecnicoInfo>({
+    problemaRelatado: editing?.tecnico?.problemaRelatado ?? "",
+    diagnostico: editing?.tecnico?.diagnostico ?? "",
+    servicoRecomendado: editing?.tecnico?.servicoRecomendado ?? "",
+  });
+  const [registroDesc, setRegistroDesc] = useState(editing?.registro?.descricao ?? "");
+  const [fotos, setFotos] = useState<RegistroFoto[]>(editing?.registro?.fotos ?? []);
+  const [desconto, setDesconto] = useState<number>(editing?.desconto ?? 0);
   const [foundVehicle, setFoundVehicle] = useState(false);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+  const [resumoOpen, setResumoOpen] = useState(false);
   const draftSnapshotRef = useRef<string>("");
   const skipAutosaveRef = useRef(true);
   const numeroOS = useMemo(
@@ -229,6 +238,19 @@ function Novo() {
     setMargem(init.margem);
     setObservacoes(init.observacoes);
   }, [init]);
+
+  useEffect(() => {
+    if (!editing) return;
+    setTecnico({
+      problemaRelatado: editing.tecnico?.problemaRelatado ?? "",
+      diagnostico: editing.tecnico?.diagnostico ?? "",
+      servicoRecomendado: editing.tecnico?.servicoRecomendado ?? "",
+    });
+    setRegistroDesc(editing.registro?.descricao ?? "");
+    setFotos(editing.registro?.fotos ?? []);
+    setDesconto(editing.desconto ?? 0);
+  }, [editing]);
+
 
 
 
