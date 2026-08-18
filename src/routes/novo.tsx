@@ -1122,6 +1122,22 @@ function Novo() {
                 <span className="text-xs text-[#666]">%</span>
               </div>
             </div>
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-[#888]">Desconto (R$)</span>
+                <Input
+                  type="number"
+                  value={String(desconto)}
+                  onChange={(v) => setDesconto(Math.max(0, +v || 0))}
+                  className="!py-1.5 !text-sm w-32 text-right"
+                />
+              </div>
+              {totals.desconto > 0 && (
+                <p className="text-xs mt-1.5 text-right text-emerald-400">
+                  − {brl(totals.desconto)} sobre {brl(totals.bruto)}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-3">
@@ -1132,6 +1148,7 @@ function Novo() {
             />
             <Highlight label="Lucro estimado" value={brl(totals.lucro)} />
           </div>
+
 
           <div className="mt-4">
             <Field label="Observações">
